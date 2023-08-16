@@ -11,7 +11,7 @@
 #endif
 #define sizeofA(__aVar)  ((int)(sizeof(__aVar)/sizeof(__aVar[0])))
 
-MYMOD(net.re3.gennariarmando.rusjj.rubbish, Rubbish, 1.0, re3 Team & gennariarmando & RusJJ)
+MYMOD(net.re3.gennariarmando.rusjj.rubbish, Rubbish, 1.1, re3 Team & gennariarmando & RusJJ)
 BEGIN_DEPLIST()
     ADD_DEPENDENCY_VER(net.rusjj.aml, 1.0.2.2)
 END_DEPLIST()
@@ -64,6 +64,7 @@ RwTexture* (*GetRWTexture)(TextureDatabaseRuntime *, int);
 bool (*ProcessVerticalLine)(CVector const&,float,CColPoint &,CEntity *&,bool,bool,bool,bool,bool,bool,CStoredCollPoly *);
 CColModel* (*GetColModel)(CEntity*);
 void (*RwTextureDestroy)(RwTexture*);
+bool (*GetWaterLevelNoWaves)(float x, float y, float z, float *pWaterZ, float *pBigWaves, float *pSmallWaves);
 
 inline RwTexture* GetTextureFromTexDB(TextureDatabaseRuntime* texdb, const char* name)
 {
@@ -348,14 +349,18 @@ public:
         
             if (foundGround)
             {
-                sheet->m_angle = (rand() & 0xFF) / 256.0f * 6.28f;
-                sheet->m_state = 1;
-                sheet->m_scale = RandomFloat(0.4f, 1.0f);
-                if (FindAttributesForCoors(sheet->m_basePos) & CAM_NO_RAIN) sheet->m_isVisible = false;
-                else sheet->m_isVisible = true;
+                float level = 0.0f;
+                if(GetWaterLevelNoWaves(sheet->m_basePos.x, sheet->m_basePos.y, sheet->m_basePos.z, &level, NULL, NULL) == 0)
+                {
+                    sheet->m_angle = (rand() & 0xFF) / 256.0f * 6.28f;
+                    sheet->m_state = 1;
+                    sheet->m_scale = RandomFloat(0.4f, 1.0f);
+                    if (FindAttributesForCoors(sheet->m_basePos) & CAM_NO_RAIN) sheet->m_isVisible = false;
+                    else sheet->m_isVisible = true;
 
-                sheet->RemoveFromList();
-                sheet->AddToList(&StartStaticsList);
+                    sheet->RemoveFromList();
+                    sheet->AddToList(&StartStaticsList);
+                }
             }
         }
 
@@ -421,10 +426,14 @@ public:
 
                 if (foundGround)
                 {
-                    aSheets[i].m_state = 2;
-                    aSheets[i].m_animationType = 1;
-                    aSheets[i].RemoveFromList();
-                    aSheets[i].AddToList(&StartMoversList);
+                    float level = 0.0f;
+                    if(GetWaterLevelNoWaves(tx, ty, tz, &level, NULL, NULL) == 0)
+                    {
+                        aSheets[i].m_state = 2;
+                        aSheets[i].m_animationType = 1;
+                        aSheets[i].RemoveFromList();
+                        aSheets[i].AddToList(&StartMoversList);
+                    }
                 }
             }
         }
@@ -639,4 +648,5 @@ extern "C" void OnAllModsLoaded()
     SET_TO(ProcessVerticalLine, aml->GetSym(hGTASA, "_ZN6CWorld19ProcessVerticalLineERK7CVectorfR9CColPointRP7CEntitybbbbbbP15CStoredCollPoly"));
     SET_TO(GetColModel, aml->GetSym(hGTASA, "_ZN7CEntity11GetColModelEv"));
     SET_TO(RwTextureDestroy, aml->GetSym(hGTASA, "_Z16RwTextureDestroyP9RwTexture"));
+    SET_TO(GetWaterLevelNoWaves, aml->GetSym(hGTASA, "_ZN11CWaterLevel20GetWaterLevelNoWavesEfffPfS0_S0_"));
 }
